@@ -1,0 +1,31 @@
+{
+  "name": "leoblog",
+  "version": "1.0.0",
+  "description": "Leo Personal Blog",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LeoHChen/leoblog.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/LeoHChen/leoblog/issues"
+  },
+  "homepage": "https://github.com/LeoHChen/leoblog#readme",
+  "dependencies": {
+    "astro": "^5.16.11"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "typescript": "^5.9.3"
+  }
+}

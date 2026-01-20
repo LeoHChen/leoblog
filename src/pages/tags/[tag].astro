@@ -1,0 +1,52 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatDate } from '../../utils/format-date';
+
+export async function getStaticPaths() {
+  const allPosts = await getCollection('blog');
+  const tags = new Set<string>();
+
+  allPosts.forEach((post) => {
+    post.data.tags.forEach((tag) => tags.add(tag));
+  });
+
+  return Array.from(tags).map((tag) => ({
+    params: { tag },
+  }));
+}
+
+const { tag } = Astro.params;
+const allPosts = await getCollection('blog');
+const filteredPosts = allPosts
+  .filter((post) => post.data.tags.includes(tag))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<BaseLayout title={`Posts tagged "${tag}" - Leo's Blog`}>
+  <h1>Posts tagged "{tag}"</h1>
+
+  <p style="color: var(--color-hover); margin-bottom: var(--spacing-lg);">
+    {filteredPosts.length} {filteredPosts.length === 1 ? 'post' : 'posts'}
+  </p>
+
+  <div style="display: grid; gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+    {filteredPosts.map((post) => (
+      <article style="border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-md);">
+        <h2 style="margin-top: 0;">
+          <a href={`/blog/${post.slug}`} style="border: none;">
+            {post.data.title}
+          </a>
+        </h2>
+        <p style="color: var(--color-hover); font-size: 0.9rem; margin-bottom: var(--spacing-sm);">
+          {formatDate(post.data.pubDate)}
+        </p>
+        <p>{post.data.description}</p>
+      </article>
+    ))}
+  </div>
+
+  <nav style="margin-top: var(--spacing-xl); padding-top: var(--spacing-lg); border-top: 1px solid var(--color-border);">
+    <a href="/">← Back to all posts</a>
+  </nav>
+</BaseLayout>

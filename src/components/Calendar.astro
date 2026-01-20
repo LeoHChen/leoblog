@@ -1,0 +1,46 @@
+---
+import { getCollection } from 'astro:content';
+
+const allPosts = await getCollection('blog');
+
+interface MonthGroup {
+  month: string;
+  year: number;
+  count: number;
+}
+
+const monthGroups = new Map<string, MonthGroup>();
+
+allPosts.forEach((post) => {
+  const date = post.data.pubDate;
+  const year = date.getFullYear();
+  const month = date.toLocaleDateString('en-US', { month: 'long' });
+  const key = `${year}-${month}`;
+
+  if (monthGroups.has(key)) {
+    monthGroups.get(key)!.count++;
+  } else {
+    monthGroups.set(key, { month, year, count: 1 });
+  }
+});
+
+const sortedGroups = Array.from(monthGroups.values())
+  .sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return new Date(`${a.month} 1, ${a.year}`).getMonth() -
+           new Date(`${b.month} 1, ${b.year}`).getMonth();
+  });
+---
+
+<div style="display: grid; gap: var(--spacing-xs);">
+  {sortedGroups.map((group) => (
+    <div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0;">
+      <span>{group.month} {group.year}</span>
+      <span style="color: var(--color-hover);">({group.count})</span>
+    </div>
+  ))}
+</div>
+
+{sortedGroups.length === 0 && (
+  <p style="color: var(--color-hover);">No posts yet.</p>
+)}

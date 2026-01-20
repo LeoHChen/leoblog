@@ -1,0 +1,39 @@
+---
+import { getCollection } from 'astro:content';
+
+const allPosts = await getCollection('blog');
+const tagCounts = new Map<string, number>();
+
+allPosts.forEach((post) => {
+  post.data.tags.forEach((tag) => {
+    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+  });
+});
+
+const sortedTags = Array.from(tagCounts.entries())
+  .sort(([, a], [, b]) => b - a);
+
+const maxCount = Math.max(...Array.from(tagCounts.values()));
+const minCount = Math.min(...Array.from(tagCounts.values()));
+
+function getTagSize(count: number): number {
+  if (maxCount === minCount) return 1;
+  const normalized = (count - minCount) / (maxCount - minCount);
+  return 0.85 + normalized * 0.6; // Scale from 0.85rem to 1.45rem
+}
+---
+
+<div style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm);">
+  {sortedTags.map(([tag, count]) => (
+    <a
+      href={`/tags/${tag}`}
+      style={`border: 1px solid var(--color-border); padding: 0.25rem 0.75rem; font-size: ${getTagSize(count)}rem;`}
+    >
+      {tag} ({count})
+    </a>
+  ))}
+</div>
+
+{sortedTags.length === 0 && (
+  <p style="color: var(--color-hover);">No tags yet.</p>
+)}

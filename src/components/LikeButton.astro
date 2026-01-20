@@ -1,0 +1,91 @@
+---
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<div id={`like-button-${slug}`} class="like-container">
+  <button class="like-button">
+    <span class="heart">♡</span>
+    <span class="count">0</span>
+  </button>
+</div>
+
+<style>
+  .like-container {
+    display: inline-block;
+  }
+
+  .like-button {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 1rem;
+  }
+
+  .like-button.liked .heart {
+    content: '♥';
+  }
+
+  .heart {
+    font-size: 1.5rem;
+    transition: transform 0.2s;
+  }
+
+  .like-button:hover .heart {
+    transform: scale(1.2);
+  }
+
+  .like-button.liked {
+    background: var(--color-text);
+    color: var(--color-bg);
+  }
+</style>
+
+<script define:vars={{ slug }}>
+  const storageKey = `like-${slug}`;
+  const countKey = `like-count-${slug}`;
+  const button = document.querySelector(`#like-button-${slug} .like-button`);
+  const heart = button.querySelector('.heart');
+  const countEl = button.querySelector('.count');
+
+  // Load state
+  const isLiked = localStorage.getItem(storageKey) === 'true';
+  let count = parseInt(localStorage.getItem(countKey) || '0', 10);
+
+  // Update UI
+  function updateUI() {
+    if (isLiked) {
+      button.classList.add('liked');
+      heart.textContent = '♥';
+    }
+    countEl.textContent = count.toString();
+  }
+
+  updateUI();
+
+  // Handle click
+  button.addEventListener('click', () => {
+    const currentlyLiked = localStorage.getItem(storageKey) === 'true';
+
+    if (currentlyLiked) {
+      // Unlike
+      localStorage.setItem(storageKey, 'false');
+      count = Math.max(0, count - 1);
+      localStorage.setItem(countKey, count.toString());
+      button.classList.remove('liked');
+      heart.textContent = '♡';
+    } else {
+      // Like
+      localStorage.setItem(storageKey, 'true');
+      count++;
+      localStorage.setItem(countKey, count.toString());
+      button.classList.add('liked');
+      heart.textContent = '♥';
+    }
+
+    countEl.textContent = count.toString();
+  });
+</script>
