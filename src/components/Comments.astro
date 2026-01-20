@@ -4,6 +4,7 @@ interface Props {
 }
 
 const { slug } = Astro.props;
+const recaptchaSiteKey = import.meta.env.PUBLIC_RECAPTCHA_SITE_KEY;
 ---
 
 <div id={`comments-${slug}`} class="comments-section">
@@ -14,17 +15,22 @@ const { slug } = Astro.props;
       <label for="name" style="display: block; margin-bottom: var(--spacing-xs); font-weight: 600;">
         Name
       </label>
-      <input type="text" id="name" name="name" required />
+      <input type="text" id="name" name="name" required maxlength="50" />
     </div>
 
     <div style="margin-bottom: var(--spacing-sm);">
       <label for="comment" style="display: block; margin-bottom: var(--spacing-xs); font-weight: 600;">
         Comment
       </label>
-      <textarea id="comment" name="comment" rows="4" required></textarea>
+      <textarea id="comment" name="comment" rows="4" required maxlength="1000"></textarea>
     </div>
 
+    {recaptchaSiteKey && (
+      <div class="g-recaptcha" data-sitekey={recaptchaSiteKey} style="margin-bottom: var(--spacing-sm);"></div>
+    )}
+
     <button type="submit">Post Comment</button>
+    <p class="error-message" style="color: #cc0000; margin-top: var(--spacing-xs); display: none;"></p>
   </form>
 
   <div class="comments-list" style="margin-top: var(--spacing-lg);"></div>
@@ -50,13 +56,103 @@ const { slug } = Astro.props;
 
   .comment-body {
     margin-top: var(--spacing-xs);
+    word-wrap: break-word;
+    white-space: pre-wrap;
   }
 </style>
 
-<script define:vars={{ slug }}>
+{recaptchaSiteKey && (
+  <script is:inline src="https://www.google.com/recaptcha/api.js" async defer></script>
+)}
+
+<script define:vars={{ slug, recaptchaSiteKey }}>
   const storageKey = `comments-${slug}`;
   const form = document.querySelector(`#comments-${slug} .comment-form`);
   const commentsList = document.querySelector(`#comments-${slug} .comments-list`);
+  const errorMessage = document.querySelector(`#comments-${slug} .error-message`);
+
+  // Content moderation - blocked words and patterns
+  const BLOCKED_WORDS = [
+    'spam', 'viagra', 'casino', 'porn', 'xxx', 'nsfw',
+    'fuck', 'shit', 'bitch', 'asshole', 'damn',
+  ];
+
+  const BLOCKED_PATTERNS = [
+    /\b(f+u+c+k+|s+h+i+t+|d+a+m+n+|b+i+t+c+h+|a+s+s+h+o+l+e+)\b/gi,
+    /\b(p+o+r+n+|x+x+x+|n+s+f+w+|s+e+x+)\b/gi,
+    /(https?:\/\/[^\s]+)/gi, // Block URLs (common in spam)
+    /\b\d{10,}\b/g, // Block long number sequences (phone numbers)
+  ];
+
+  // Sanitize text to prevent XSS
+  function sanitizeText(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  }
+
+  // Content moderation function
+  function moderateContent(text) {
+    if (!text || text.trim().length === 0) {
+      return { isClean: false, reason: 'Empty content' };
+    }
+
+    const lowerText = text.toLowerCase();
+
+    // Check for blocked words
+    for (const word of BLOCKED_WORDS) {
+      if (lowerText.includes(word.toLowerCase())) {
+        return {
+          isClean: false,
+          reason: 'Your comment contains inappropriate language and cannot be posted.',
+        };
+      }
+    }
+
+    // Check for blocked patterns
+    for (const pattern of BLOCKED_PATTERNS) {
+      if (pattern.test(text)) {
+        return {
+          isClean: false,
+          reason: 'Your comment contains inappropriate content, patterns, or links and cannot be posted.',
+        };
+      }
+    }
+
+    // Check for excessive caps (common in spam)
+    const capsCount = (text.match(/[A-Z]/g) || []).length;
+    const totalLetters = (text.match(/[a-zA-Z]/g) || []).length;
+    if (totalLetters > 10 && capsCount / totalLetters > 0.7) {
+      return {
+        isClean: false,
+        reason: 'Please avoid excessive use of capital letters.',
+      };
+    }
+
+    // Check for excessive repetition (spam indicator)
+    const words = text.split(/\s+/);
+    const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+    if (words.length > 5 && uniqueWords.size / words.length < 0.3) {
+      return {
+        isClean: false,
+        reason: 'Your comment appears to contain spam or excessive repetition.',
+      };
+    }
+
+    // Check minimum length
+    if (text.trim().length < 3) {
+      return {
+        isClean: false,
+        reason: 'Comment is too short. Please write at least a few characters.',
+      };
+    }
+
+    return { isClean: true };
+  }
 
   // Load comments
   function loadComments() {
@@ -71,7 +167,7 @@ const { slug } = Astro.props;
       .map((comment) => `
         <div class="comment-item">
           <div class="comment-header">
-            ${comment.name}
+            ${sanitizeText(comment.name)}
             <span class="comment-date">${new Date(comment.date).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
@@ -80,7 +176,7 @@ const { slug } = Astro.props;
               minute: '2-digit'
             })}</span>
           </div>
-          <div class="comment-body">${comment.comment}</div>
+          <div class="comment-body">${sanitizeText(comment.comment)}</div>
         </div>
       `)
       .join('');
@@ -92,19 +188,61 @@ const { slug } = Astro.props;
   form.addEventListener('submit', (e) => {
     e.preventDefault();
 
+    // Hide any previous error
+    errorMessage.style.display = 'none';
+
+    // Check reCAPTCHA if enabled
+    if (recaptchaSiteKey) {
+      const recaptchaResponse = grecaptcha.getResponse();
+      if (!recaptchaResponse) {
+        errorMessage.textContent = 'Please complete the reCAPTCHA verification.';
+        errorMessage.style.display = 'block';
+        return;
+      }
+    }
+
     const formData = new FormData(form);
     const name = formData.get('name');
     const comment = formData.get('comment');
 
+    // Basic validation
+    if (!name || !comment) {
+      errorMessage.textContent = 'Please fill in all fields.';
+      errorMessage.style.display = 'block';
+      return;
+    }
+
+    // Moderate name
+    const nameModeration = moderateContent(name);
+    if (!nameModeration.isClean) {
+      errorMessage.textContent = nameModeration.reason;
+      errorMessage.style.display = 'block';
+      return;
+    }
+
+    // Moderate comment content
+    const commentModeration = moderateContent(comment);
+    if (!commentModeration.isClean) {
+      errorMessage.textContent = commentModeration.reason;
+      errorMessage.style.display = 'block';
+      return;
+    }
+
     const comments = JSON.parse(localStorage.getItem(storageKey) || '[]');
     comments.push({
-      name,
-      comment,
+      name: name.toString().trim(),
+      comment: comment.toString().trim(),
       date: new Date().toISOString(),
     });
 
     localStorage.setItem(storageKey, JSON.stringify(comments));
     form.reset();
+
+    // Reset reCAPTCHA if enabled
+    if (recaptchaSiteKey && typeof grecaptcha !== 'undefined') {
+      grecaptcha.reset();
+    }
+
     loadComments();
   });
 </script>
