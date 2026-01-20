@@ -36,11 +36,11 @@ const sortedGroups = Array.from(monthGroups.values())
   {sortedGroups.map((group) => (
     <div style="display: flex; justify-content: space-between; padding: var(--spacing-xs) 0;">
       <span>{group.month} {group.year}</span>
-      <span style="color: var(--color-hover);">({group.count})</span>
+      <span style="color: var(--color-text-secondary);">({group.count})</span>
     </div>
   ))}
 </div>
 
 {sortedGroups.length === 0 && (
-  <p style="color: var(--color-hover);">No posts yet.</p>
+  <p style="color: var(--color-text-secondary);">No posts yet.</p>
 )}

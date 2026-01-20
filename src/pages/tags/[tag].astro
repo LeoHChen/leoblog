@@ -26,7 +26,7 @@ const filteredPosts = allPosts
 <BaseLayout title={`Posts tagged "${tag}" - Leo's Blog`}>
   <h1>Posts tagged "{tag}"</h1>
 
-  <p style="color: var(--color-hover); margin-bottom: var(--spacing-lg);">
+  <p style="color: var(--color-text-secondary); margin-bottom: var(--spacing-lg);">
     {filteredPosts.length} {filteredPosts.length === 1 ? 'post' : 'posts'}
   </p>
 
@@ -38,7 +38,7 @@ const filteredPosts = allPosts
             {post.data.title}
           </a>
         </h2>
-        <p style="color: var(--color-hover); font-size: 0.9rem; margin-bottom: var(--spacing-sm);">
+        <p style="color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: var(--spacing-sm);">
           {formatDate(post.data.pubDate)}
         </p>
         <p>{post.data.description}</p>
